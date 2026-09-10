@@ -3,5 +3,16 @@
   "identifier": "com.orvian2.repo",
   "tintColor": "#3B82F6",
   "iconURL": "https://raw.githubusercontent.com/REPLACE/Orvian2/main/icon.png",
-  "apps": []
+  "apps": [
+    {
+      "name": "Orvian2",
+      "bundleIdentifier": "com.orvian2.app",
+      "version": "0.0.1",
+      "downloadURL": "https://github.com/REPLACE/Orvian2/releases/download/v0.0.1/Orvian2-0.0.1-unsigned.ipa",
+      "iconURL": "https://raw.githubusercontent.com/REPLACE/Orvian2/main/icon.png",
+      "tintColor": "#3B82F6",
+      "category": "utilities",
+      "size": 1288383
+    }
+  ]
 }
