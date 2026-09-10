@@ -54,7 +54,7 @@ final class AsyncThrottler: @unchecked Sendable {
 /// Exécute des opérations par lots bornés, en conservant l'ordre des résultats.
 func mapBounded<Input, Output>(_ items: [Input],
                                concurrency: Int,
-                               operation: (Input) async throws -> Output) async throws -> [Output] {
+                               operation: @escaping (Input) async throws -> Output) async throws -> [Output] {
     guard !items.isEmpty else { return [] }
     let throttler = AsyncThrottler(maxConcurrent: concurrency)
     var results = [Output?](repeating: nil, count: items.count)
