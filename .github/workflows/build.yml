@@ -1,0 +1,132 @@
+name: Build Orvian2
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: |
+          ls /Applications | grep -i xcode || true
+          if [ -d "/Applications/Xcode_16.0.app" ]; then sudo xcode-select -s /Applications/Xcode_16.0.app; fi
+          xcodebuild -version
+
+      - name: Compute next version
+        id: version
+        run: |
+          set -euo pipefail
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Dernier tag: $LAST_TAG"
+          BASE=${LAST_TAG#v}
+          MAJOR=$(echo "$BASE" | cut -d. -f1)
+          MINOR=$(echo "$BASE" | cut -d. -f2)
+          PATCH=$(echo "$BASE" | cut -d. -f3)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            VERSION="${BASE:-0.0.0}"
+          else
+            PATCH=$((PATCH + 1))
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version calculée: $VERSION"
+
+      - name: Update MARKETING_VERSION
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          python3 - "$VERSION" <<'PY'
+          import re, sys
+          version = sys.argv[1]
+          path = "project.yml"
+          with open(path, encoding="utf-8") as f:
+              content = f.read()
+          content = re.sub(r'MARKETING_VERSION:\s*"[^"]*"', f'MARKETING_VERSION: "{version}"', content)
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(content)
+          print("MARKETING_VERSION ->", version)
+          PY
+
+      - name: Check favorites disk cache & secrets
+        run: python3 .github/scripts/check_favorites_cache.py
+
+      - name: Compile & run GIF decoding checks
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          swiftc -parse-as-library \
+            Orvian2/Core/Media/GIFDecoder.swift Tests/GIFImageChecks.swift \
+            -o build/gifchecks -framework ImageIO -framework CoreGraphics -framework UniformTypeIdentifiers
+          ./build/gifchecks
+
+      - name: Install XcodeGen
+        run: brew install xcodegen || brew upgrade xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build app (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Orvian2.xcodeproj \
+            -scheme Orvian2 \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            clean build
+
+      - name: Package unsigned IPA
+        id: package
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          APP=$(find build/DerivedData/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
+          echo "App: $APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          IPA="Orvian2-${VERSION}-unsigned.ipa"
+          zip -qry "$IPA" Payload
+          echo "ipa=$IPA" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -f%z "$IPA")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orvian2-unsigned-ipa
+          path: Orvian2-*-unsigned.ipa
+
+      - name: Update repo.json, tag and release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          IPA="${{ steps.package.outputs.ipa }}"
+          SIZE="${{ steps.package.outputs.size }}"
+          python3 .github/scripts/update_repo.py "$VERSION" "$SIZE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add repo.json project.yml
+          git commit -m "chore(release): v${VERSION}" || echo "Rien à committer"
+          git tag "v${VERSION}"
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
+          gh release create "v${VERSION}" "$IPA" \
+            --title "Orvian2 v${VERSION}" \
+            --notes "Build automatique non signé. Compatible LiveContainer / AltStore."
