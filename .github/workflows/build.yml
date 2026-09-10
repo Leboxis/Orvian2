@@ -24,18 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           ls /Applications | grep -i xcode || true
-          # Choisit le Xcode le plus récent (runtimes simulateur cohérents avec le SDK).
-          LATEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -i beta | python3 -c "
-import re, sys
-items = []
-for path in sys.stdin.read().split():
-    m = re.search(r'/Xcode_?(\d+(?:\.\d+)*)\.app$', path)
-    if m:
-        items.append((tuple(int(x) for x in m.group(1).split('.')), path))
-    elif path.endswith('/Xcode.app'):
-        items.append(((0,), path))
-print(max(items)[1] if items else '/Applications/Xcode.app')
-" || true)
+          LATEST=$(python3 .github/scripts/select_xcode.py || echo "/Applications/Xcode.app")
+          echo "Xcode sélectionné : $LATEST"
           if [ -n "$LATEST" ] && [ -d "$LATEST" ]; then sudo xcode-select -s "$LATEST"; fi
           xcode-select -p
           xcodebuild -version
