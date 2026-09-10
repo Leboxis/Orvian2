@@ -53,7 +53,7 @@ struct FileCardView: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                if !tagPills.isEmpty {
+                if hasTagPills {
                     tagPills
                 }
             }
@@ -134,6 +134,10 @@ struct FileCardView: View {
                 }
             }
         }
+    }
+
+    private var hasTagPills: Bool {
+        !(file.categories ?? []).isEmpty
     }
 
     private var subtitle: String {

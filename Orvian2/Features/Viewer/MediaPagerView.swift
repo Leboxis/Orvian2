@@ -43,7 +43,7 @@ struct MediaPagerView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .scrollDisabled(!controlInteractionFileIDs.isEmpty)
             .offset(y: dragOffset)
-            .opacity(1 - min(abs(dragOffset) / 600, 0.6))
+            .opacity(1 - min(abs(dragOffset) / CGFloat(600), CGFloat(0.6)))
 
             chrome
         }

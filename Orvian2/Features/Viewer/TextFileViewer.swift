@@ -115,7 +115,7 @@ struct TextFileViewer: View {
                 try await service.uploadContent(driveId: driveId, fileId: file.id,
                                                 data: data, totalSize: data.count,
                                                 lastModifiedAt: Int(Date().timeIntervalSince1970))
-                MediaURLCache.shared.invalidate(driveId: driveId, fileId: file.id)
+                await MediaURLCache.shared.invalidate(driveId: driveId, fileId: file.id)
                 originalText = text
                 isEditing = false
             } catch {

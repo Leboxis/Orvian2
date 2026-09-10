@@ -46,7 +46,7 @@ final class VideoAssetCache {
 
     func invalidate(driveId: Int, fileId: Int) {
         cancelPrefetch(driveId: driveId, fileId: fileId)
-        MediaURLCache.shared.invalidate(driveId: driveId, fileId: fileId)
+        Task { await MediaURLCache.shared.invalidate(driveId: driveId, fileId: fileId) }
     }
 
     private func promote(_ key: String) {

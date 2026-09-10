@@ -98,8 +98,9 @@ actor APIClient {
     private static func recordPerf(request: URLRequest, response: URLResponse, start: DispatchTime) async {
         let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
         guard let http = response as? HTTPURLResponse else { return }
-        let fromCache = http.statusCode == 304 || (request.url.flatMap { URLCache.shared.cachedResponse(for: request) } != nil
-            && http.value(forHTTPHeaderField: "Age") != nil)
+        let fromCache = http.statusCode == 304 || (request.url.flatMap { _ in
+            URLCache.shared.cachedResponse(for: request)
+        } != nil && http.value(forHTTPHeaderField: "Age") != nil)
         let method = request.httpMethod ?? "GET"
         let path = request.url?.path ?? ""
         let bytes = http.expectedContentLength > 0 ? Int(http.expectedContentLength) : 0

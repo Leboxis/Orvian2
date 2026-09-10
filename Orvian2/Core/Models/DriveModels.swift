@@ -130,6 +130,15 @@ struct FileCategory: Codable, Hashable, Identifiable {
         self.userId = try? container.decodeIfPresent(Int.self, forKey: .userId)
         self.addedAt = try? container.decodeIfPresent(Int.self, forKey: .addedAt)
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(categoryId, forKey: .categoryId)
+        try container.encodeIfPresent(isGeneratedByAI, forKey: .isGeneratedByAI)
+        try container.encodeIfPresent(userValidation, forKey: .userValidation)
+        try container.encodeIfPresent(userId, forKey: .userId)
+        try container.encodeIfPresent(addedAt, forKey: .addedAt)
+    }
 }
 
 // MARK: - Fichier
