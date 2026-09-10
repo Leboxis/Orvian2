@@ -22,8 +22,22 @@ jobs:
 
       - name: Select Xcode
         run: |
+          set -euo pipefail
           ls /Applications | grep -i xcode || true
-          if [ -d "/Applications/Xcode_16.0.app" ]; then sudo xcode-select -s /Applications/Xcode_16.0.app; fi
+          # Choisit le Xcode le plus récent (runtimes simulateur cohérents avec le SDK).
+          LATEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -i beta | python3 -c "
+import re, sys
+items = []
+for path in sys.stdin.read().split():
+    m = re.search(r'/Xcode_?(\d+(?:\.\d+)*)\.app$', path)
+    if m:
+        items.append((tuple(int(x) for x in m.group(1).split('.')), path))
+    elif path.endswith('/Xcode.app'):
+        items.append(((0,), path))
+print(max(items)[1] if items else '/Applications/Xcode.app')
+" || true)
+          if [ -n "$LATEST" ] && [ -d "$LATEST" ]; then sudo xcode-select -s "$LATEST"; fi
+          xcode-select -p
           xcodebuild -version
 
       - name: Compute next version
@@ -86,6 +100,7 @@ jobs:
             -scheme Orvian2 \
             -configuration Release \
             -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             clean build
